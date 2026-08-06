@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8">
+<title>Hospital Cost & Operations Dashboard</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root{ --bg:#0d1b1e; --panel:#12262a; --panel-border:#1f3a3f; --ink:#eaf2f1;
+    --ink-dim:#9fb8b7; --teal:#2dd4bf; --amber:#f0a868; --rose:#e8746a; --grid:#1c3438; }
+  *{box-sizing:border-box;}
+  body{ margin:0; background:var(--bg); color:var(--ink);
+    font-family:Inter,-apple-system,'Segoe UI',sans-serif; padding:28px 32px 48px; }
+  .header{ display:flex; justify-content:space-between; align-items:flex-end;
+    border-bottom:1px solid var(--panel-border); padding-bottom:18px; margin-bottom:26px;
+    flex-wrap:wrap; gap:16px; }
+  .header h1{ font-size:22px; margin:0 0 4px; font-weight:600; }
+  .header .sub{ color:var(--ink-dim); font-size:13px; font-family:monospace; }
+  .kpi-row{ display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:22px; }
+  .kpi{ background:var(--panel); border:1px solid var(--panel-border); border-radius:6px;
+    padding:16px 18px; position:relative; overflow:hidden; }
+  .kpi::before{ content:''; position:absolute; top:0; left:0; bottom:0; width:3px; background:var(--teal); }
+  .kpi.warn::before{ background:var(--amber); }
+  .kpi-label{ font-family:monospace; font-size:10.5px; text-transform:uppercase;
+    letter-spacing:.08em; color:var(--ink-dim); margin-bottom:8px; }
+  .kpi-value{ font-size:26px; font-weight:700; line-height:1; }
+  .kpi-note{ font-size:11.5px; color:var(--ink-dim); margin-top:6px; }
+  .grid{ display:grid; grid-template-columns:1.3fr 1fr; gap:16px; margin-bottom:16px; }
+  .grid.three{ grid-template-columns:1fr 1fr 1fr; }
+  .panel{ background:var(--panel); border:1px solid var(--panel-border); border-radius:6px;
+    padding:18px 20px 12px; }
+  .panel-title{ font-size:13px; font-weight:600; margin-bottom:2px; }
+  .panel-desc{ font-size:11.5px; color:var(--ink-dim); margin-bottom:12px; }
+  canvas{ max-height:260px; }
+  .insight-box{ background:var(--panel); border:1px solid var(--panel-border);
+    border-left:3px solid var(--teal); border-radius:6px; padding:16px 20px; margin-bottom:10px; }
+  .insight-box .k{ font-family:monospace; font-size:10.5px; color:var(--teal);
+    text-transform:uppercase; letter-spacing:.06em; margin-bottom:6px; }
+  .insight-box p{ margin:0; font-size:13.5px; line-height:1.55; }
+  .insight-box.amber{ border-left-color:var(--amber); }
+  .insight-box.amber .k{ color:var(--amber); }
+  .insight-box.rose{ border-left-color:var(--rose); }
+  .insight-box.rose .k{ color:var(--rose); }
+  .section-label{ font-family:monospace; font-size:11px; color:var(--ink-dim);
+    text-transform:uppercase; letter-spacing:.1em; margin:26px 0 10px; display:flex;
+    align-items:center; gap:10px; }
+  .section-label::after{ content:''; flex:1; height:1px; background:var(--panel-border); }
+  @media (max-width:900px){ .kpi-row{grid-template-columns:repeat(2,1fr);}
+    .grid,.grid.three{grid-template-columns:1fr;} }
+</style></head>
+<body>
+<div class="header">
+  <div><h1>Hospital Cost &amp; Operations Dashboard</h1>
+  <div class="sub">Auto-generated from cleaned_hospital_data.csv</div></div>
+</div>
+<div class="kpi-row">
+  <div class="kpi"><div class="kpi-label">Total Cost</div><div class="kpi-value" id="kpiTotalCost">—</div>
+    <div class="kpi-note">across all departments</div></div>
+  <div class="kpi"><div class="kpi-label">Total Patients</div><div class="kpi-value" id="kpiPatients">—</div>
+    <div class="kpi-note">unique admissions</div></div>
+  <div class="kpi"><div class="kpi-label">Avg Length of Stay</div><div class="kpi-value" id="kpiLOS">—</div>
+    <div class="kpi-note">days per admission</div></div>
+  <div class="kpi warn"><div class="kpi-label">Top 20% Patient Spend Share</div><div class="kpi-value" id="kpiTop20">—</div>
+    <div class="kpi-note">concentration risk</div></div>
+</div>
+<div class="section-label">COST BREAKDOWN</div>
+<div class="grid">
+  <div class="panel"><div class="panel-title">Total Cost by Department</div>
+    <div class="panel-desc">Where the money is going, department by department</div>
+    <canvas id="deptCostChart"></canvas></div>
+  <div class="panel"><div class="panel-title">Cost by Age Group</div>
+    <div class="panel-desc">Which patient age bracket drives the most spend</div>
+    <canvas id="ageCostChart"></canvas></div>
+</div>
+<div class="section-label">OPERATIONS</div>
+<div class="grid three">
+  <div class="panel"><div class="panel-title">Avg Length of Stay (days)</div><canvas id="losChart"></canvas></div>
+  <div class="panel"><div class="panel-title">Readmission Rate (%)</div><canvas id="readmitChart"></canvas></div>
+  <div class="panel"><div class="panel-title">Monthly Admissions</div><canvas id="monthlyChart"></canvas></div>
+</div>
+<div class="section-label">KEY INSIGHTS &amp; RECOMMENDATIONS</div>
+<div class="insight-box"><div class="k">Cost driver</div><p id="insight1">—</p></div>
+<div class="insight-box amber"><div class="k">Operational flag</div><p id="insight2">—</p></div>
+<div class="insight-box rose"><div class="k">Quality risk</div><p id="insight3">—</p></div>
+<div class="insight-box"><div class="k">Patient concentration</div><p id="insight4">—</p></div>
+
+<script>
+const DATA = {"deptCost": [{"department": "Orthopedics", "total_cost": 9727655.2, "avg_cost": 60797.844999999994, "patient_count": 160, "avg_los": 5.65}, {"department": "Cardiology", "total_cost": 8259838.63, "avg_cost": 45383.728736263736, "patient_count": 182, "avg_los": 4.489010989010989}, {"department": "Neurology", "total_cost": 6549158.69, "avg_cost": 53681.62860655738, "patient_count": 122, "avg_los": 6.401639344262295}, {"department": "Gynecology", "total_cost": 4404635.4, "avg_cost": 25169.345142857146, "patient_count": 175, "avg_los": 2.611428571428571}, {"department": "Pediatrics", "total_cost": 4061916.22, "avg_cost": 20830.33958974359, "patient_count": 195, "avg_los": 2.4205128205128204}, {"department": "Neuro", "total_cost": 3093962.5300000003, "avg_cost": 56253.864181818186, "patient_count": 55, "avg_los": 6.363636363636363}, {"department": "General Medicine", "total_cost": 1159608.33, "avg_cost": 14866.773461538463, "patient_count": 78, "avg_los": 3.6153846153846154}, {"department": "Gen Medicine", "total_cost": 813931.1900000001, "avg_cost": 15652.522884615386, "patient_count": 52, "avg_los": 3.3461538461538463}, {"department": "Gen Med", "total_cost": 759775.27, "avg_cost": 16516.853695652175, "patient_count": 46, "avg_los": 3.282608695652174}], "ageCost": [{"age_group": "0-18", "cost": 3577843.84}, {"age_group": "19-30", "cost": 5670660.33}, {"age_group": "31-45", "cost": 10383825.96}, {"age_group": "46-60", "cost": 11095371.54}, {"age_group": "61-75", "cost": 5491072.73}, {"age_group": "76+", "cost": 2611707.06}], "monthly": [{"month": "2023-01", "count": 35}, {"month": "2023-02", "count": 50}, {"month": "2023-03", "count": 46}, {"month": "2023-04", "count": 47}, {"month": "2023-05", "count": 47}, {"month": "2023-06", "count": 43}, {"month": "2023-07", "count": 38}, {"month": "2023-08", "count": 58}, {"month": "2023-09", "count": 39}, {"month": "2023-10", "count": 52}, {"month": "2023-11", "count": 36}, {"month": "2023-12", "count": 43}, {"month": "2024-01", "count": 54}, {"month": "2024-02", "count": 37}, {"month": "2024-03", "count": 46}, {"month": "2024-04", "count": 59}, {"month": "2024-05", "count": 45}, {"month": "2024-06", "count": 53}, {"month": "2024-07", "count": 55}, {"month": "2024-08", "count": 43}, {"month": "2024-09", "count": 45}, {"month": "2024-10", "count": 48}, {"month": "2024-11", "count": 43}, {"month": "2024-12", "count": 3}], "readmit": [{"department": "Gen Medicine", "rate": 19.230769230769234}, {"department": "Neuro", "rate": 18.181818181818183}, {"department": "Neurology", "rate": 17.21311475409836}, {"department": "Pediatrics", "rate": 15.897435897435896}, {"department": "Cardiology", "rate": 15.384615384615385}, {"department": "General Medicine", "rate": 15.384615384615385}, {"department": "Gen Med", "rate": 13.043478260869565}, {"department": "Orthopedics", "rate": 12.5}, {"department": "Gynecology", "rate": 8.571428571428571}], "top20Share": 38.2, "totalPatients": 1065, "totalCost": 38830481.45999999, "avgCost": 36460.54597183098, "avgLOS": 4.12018779342723};
+
+function fmtINR(n){ return '₹' + (n/100000).toFixed(1) + 'L'; }
+document.getElementById('kpiTotalCost').textContent = fmtINR(DATA.totalCost);
+document.getElementById('kpiPatients').textContent = DATA.totalPatients.toLocaleString();
+document.getElementById('kpiLOS').textContent = (DATA.avgLOS !== null ? DATA.avgLOS.toFixed(1) : 'N/A') + ' d';
+document.getElementById('kpiTop20').textContent = DATA.top20Share + '%';
+
+Chart.defaults.color = '#9fb8b7';
+Chart.defaults.font.family = "Inter, sans-serif";
+const gridColor = '#1c3438';
+
+const deptSorted = [...DATA.deptCost].sort((a,b)=>b.total_cost - a.total_cost);
+new Chart(document.getElementById('deptCostChart'), { type:'bar',
+  data:{ labels: deptSorted.map(d=>d.department),
+    datasets:[{ data: deptSorted.map(d=>d.total_cost), backgroundColor:'#2dd4bf', borderRadius:3, barThickness:18 }]},
+  options:{ indexAxis:'y', plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>fmtINR(c.raw)}}},
+    scales:{ x:{grid:{color:gridColor}, ticks:{callback:(v)=>fmtINR(v)}}, y:{grid:{display:false}} } } });
+
+new Chart(document.getElementById('ageCostChart'), { type:'bar',
+  data:{ labels: DATA.ageCost.map(d=>d.age_group),
+    datasets:[{ data: DATA.ageCost.map(d=>d.cost), backgroundColor:'#2dd4bf', borderRadius:3 }]},
+  options:{ plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>fmtINR(c.raw)}}},
+    scales:{ y:{grid:{color:gridColor}, ticks:{callback:(v)=>fmtINR(v)}}, x:{grid:{display:false}} } } });
+
+new Chart(document.getElementById('losChart'), { type:'bar',
+  data:{ labels: deptSorted.map(d=>d.department),
+    datasets:[{ data: deptSorted.map(d=>d.avg_los || 0), backgroundColor:'#2dd4bf', borderRadius:3 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{ y:{grid:{color:gridColor}, ticks:{callback:(v)=>v+'d'}},
+      x:{grid:{display:false}, ticks:{font:{size:9}, maxRotation:60, minRotation:60}} } } });
+
+const readmitSorted = [...DATA.readmit].sort((a,b)=>(b.rate||0) - (a.rate||0));
+new Chart(document.getElementById('readmitChart'), { type:'bar',
+  data:{ labels: readmitSorted.map(d=>d.department),
+    datasets:[{ data: readmitSorted.map(d=>d.rate), backgroundColor:'#e8746a', borderRadius:3 }]},
+  options:{ plugins:{legend:{display:false}, tooltip:{callbacks:{label:(c)=>c.raw.toFixed(1)+'%'}}},
+    scales:{ y:{grid:{color:gridColor}, ticks:{callback:(v)=>v+'%'}},
+      x:{grid:{display:false}, ticks:{font:{size:9}, maxRotation:60, minRotation:60}} } } });
+
+new Chart(document.getElementById('monthlyChart'), { type:'line',
+  data:{ labels: DATA.monthly.map(d=>d.month),
+    datasets:[{ data: DATA.monthly.map(d=>d.count), borderColor:'#2dd4bf',
+      backgroundColor:'#2dd4bf22', fill:true, tension:0.3, pointRadius:2 }]},
+  options:{ plugins:{legend:{display:false}},
+    scales:{ y:{grid:{color:gridColor}}, x:{grid:{display:false}, ticks:{font:{size:8}, maxRotation:70, minRotation:70}} } } });
+
+if (deptSorted.length){
+  const topDept = deptSorted[0];
+  document.getElementById('insight1').textContent =
+    `${topDept.department} has the highest total cost at ${fmtINR(topDept.total_cost)} across ${topDept.patient_count} patients — the single largest driver of hospital spend.`;
+}
+if (deptSorted.some(d=>d.avg_los)){
+  const worstLOS = [...deptSorted].sort((a,b)=>(b.avg_los||0)-(a.avg_los||0))[0];
+  document.getElementById('insight2').textContent =
+    `${worstLOS.department} shows the longest average stay at ${(worstLOS.avg_los||0).toFixed(1)} days. Reviewing discharge planning here could free bed capacity and reduce cost.`;
+}
+if (readmitSorted.length){
+  const worstReadmit = readmitSorted[0];
+  document.getElementById('insight3').textContent =
+    `${worstReadmit.department} has the highest readmission rate at ${(worstReadmit.rate||0).toFixed(1)}%, suggesting a need for stronger post-discharge follow-up.`;
+}
+document.getElementById('insight4').textContent =
+  `The top 20% of patients by spend account for ${DATA.top20Share}% of total hospital cost — a case-management program for high-cost patients could meaningfully control overall spend.`;
+</script>
+</body></html>
